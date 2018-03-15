@@ -125,14 +125,45 @@ def effectNet(targetNet,targetCluster,effectCluster):
 
 	remainGiantCluster(targetCluster,targetNet)	
 
+
+def effectNetByTwoNet(targetNet,targetCluster,effectCluster1,effectCluster2):
+	#遍历目标网络中的所有连边
+	for (k,v) in targetNet.items():
+		removeLink=set([])
+		for n in v:
+			#连边在net1或net2中同一个cluster则跳过，不在则断开，并处理断开的连锁反应
+			if (effectCluster1[n]==effectCluster1[k] and effectCluster1[n] != 0) or (effectCluster2[n]==effectCluster2[k] and effectCluster2[n] != 0):
+				#skip
+				print ""
+			else:
+				#print "break link:",k,n
+				targetNet.get(n,set([])).remove(k)
+				removeLink.add(n)
+		for r in removeLink:
+			targetNet.get(k).remove(r)
+
+	print "net pre num:",len(targetNet)
+	#去除网络中没有连边的点
+	for k in targetNet.keys():
+		if len(targetNet.get(k))==0:
+			targetNet.pop(k)
+	print "net aft num:",len(targetNet),"\n"
+
+	#更新cluster,TODO: 这是偷懒写法，是可优化点，将这个操作放在断边时做
+	initCluster(targetNet,targetCluster)
+
+	remainGiantCluster(targetCluster,targetNet)	
+
 def networkAction(prob,attckNum,effectNum):
 	#定义网络AB
 	#array: index{node}=>value{cluster}; index begin with zero,0是网络中的一号节点
 	clusterAs =[]
 	clusterBs =[]
+	clusterCs =[]
 	#dict: key{node}=>value{set(links)
 	netA ={}
 	netB ={}
+	netC ={}
 	"""
 	初始网络
 	"""
@@ -140,9 +171,11 @@ def networkAction(prob,attckNum,effectNum):
 	for i in range(netSize):
 		clusterAs.append(clusterAcc)
 		clusterBs.append(clusterAcc)
+		clusterCs.append(clusterAcc)
 	#初始化dict
 	initNet(netA,prob)
 	initNet(netB,prob)
+	initNet(netC,prob)
 
 	#将字典节果打印到txt中,TODO： 此步为debug
 	# dicfile=open('./netA.txt','w')
@@ -167,6 +200,8 @@ def networkAction(prob,attckNum,effectNum):
 		attckNet(attckNode,netA)
 		#destroy netB node & link
 		attckNet(attckNode,netB)
+		#destroy netC node & link
+		attckNet(attckNode,netC)
 
 	"""
 	遍历网络，统计各节点的cluster归属情况
@@ -178,20 +213,32 @@ def networkAction(prob,attckNum,effectNum):
 	#B
 	initCluster(netB,clusterBs)
 	remainGiantCluster(clusterBs,netB)
+	#C
+	initCluster(netC,clusterCs)
+	remainGiantCluster(clusterCs,netC)
+
 
 	# print "cluster acc:",clusterAcc
 	# print "cluster A:",clusterAs
 	# print "cluster B:",clusterBs
 
 	"""
-	A、B网络互相影响
+	A、B、C网络互相影响
+	loop{
+		neta effect netb
+		neta effect netc
+		netc & netb effect neta
+	}
 	"""
 	for i in range(effectNum):
 		print ">>>>effect count: ",i+1
 		#A影响B
 		effectNet(netB,clusterBs,clusterAs)
-		#B影响A
-		effectNet(netA,clusterAs,clusterBs)
+		#A影响C
+		effectNet(netC,clusterCs,clusterAs)
+
+		#B&C 影响A
+		effectNetByTwoNet(netA,clusterAs,clusterBs,clusterCs)
 	
 	# print "cluster A:",clusterAs
 	# print "cluster B:",clusterBs
@@ -207,10 +254,15 @@ def networkAction(prob,attckNum,effectNum):
 	# dicfile.close()
 
 	# 如果cluster中不全是孤立节点，则结果为1；反之则为0
-	if len(netA) ==0:
-		return 0
-	else:
-		return 1
+	# index 0: neta; index1: netb; index2: netc
+	results =[0,0,0]
+	if len(netA) !=0:
+		results[0]=1
+	if len(netB) !=0:
+		results[1]=1
+	if len(netC) !=0:
+		results[2]=1
+	return results
 #程序入口
 if __name__ == '__main__':
 	print "Catastrophic cascade of failures in interdependent networks\n\n"
@@ -219,21 +271,42 @@ if __name__ == '__main__':
 	#effect num:相互影响次数
 	effectNum=10
 
-	results=[]
+	results={}
+	results["neta"]=[]
+	results["netb"]=[]
+	results["netc"]=[]
+
 	for i in range(1,10):
 		#attack num：攻击次数
 		attckNum=i*100
-		count=0
+		#neta ,netb,netc
+		counter=[0,0,0]
 		#跑10次
 		for i in range(10):
 			print "---------------------------",attckNum,i,"--------------------"
-			count+=networkAction(prob,attckNum,effectNum)
+			for i,count in enumerate(networkAction(prob,attckNum,effectNum)):
+				counter[i]=counter[i]+count
 		#除以跑的次数，这里
-		results.append(count/10.0)
+		results.get("neta").append(counter[0]/10.0)
+		results.get("netb").append(counter[1]/10.0)
+		results.get("netc").append(counter[2]/10.0)
 
 
-	dicfile=open('./result.txt','w')
-	for  i,val in enumerate(results):
+	print "neta results:"
+	dicfile=open('./netaResult.txt','w')
+	for  i,val in enumerate(results.get("neta")):
+		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
+		dicfile.write("%s %s %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
+	dicfile.close()
+	print "netb results:"
+	dicfile=open('./netbResult.txt','w')
+	for  i,val in enumerate(results.get("netb")):
+		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
+		dicfile.write("%s %s %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
+	dicfile.close()
+	print "netc results:"
+	dicfile=open('./netcResult.txt','w')
+	for  i,val in enumerate(results.get("netc")):
 		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
 		dicfile.write("%s %s %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
 	dicfile.close()
