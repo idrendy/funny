@@ -1,2 +1,2 @@
-# funny
-funny code
+ENDY
+# funny funny code
