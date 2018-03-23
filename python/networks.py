@@ -87,6 +87,7 @@ def remainGiantCluster(clusters,net):
 			clusters[n]=0
 			if n in net:
 				net.pop(n)
+	return maxs
 
 
 def attckNet(node,net):
@@ -123,7 +124,7 @@ def effectNet(targetNet,targetCluster,effectCluster):
 	#更新cluster,TODO: 这是偷懒写法，是可优化点，将这个操作放在断边时做
 	initCluster(targetNet,targetCluster)
 
-	remainGiantCluster(targetCluster,targetNet)	
+	return remainGiantCluster(targetCluster,targetNet)	
 
 
 def effectNetByTwoNet(targetNet,targetCluster,effectCluster1,effectCluster2):
@@ -152,7 +153,7 @@ def effectNetByTwoNet(targetNet,targetCluster,effectCluster1,effectCluster2):
 	#更新cluster,TODO: 这是偷懒写法，是可优化点，将这个操作放在断边时做
 	initCluster(targetNet,targetCluster)
 
-	remainGiantCluster(targetCluster,targetNet)	
+	return remainGiantCluster(targetCluster,targetNet)	
 
 def networkAction(prob,attckNum,effectNum):
 	#定义网络AB
@@ -230,15 +231,18 @@ def networkAction(prob,attckNum,effectNum):
 		netc & netb effect neta
 	}
 	"""
+	finalMaxClusterA=0
+	finalMaxClusterB=0
+	finalMaxClusterC=0
 	for i in range(effectNum):
 		print ">>>>effect count: ",i+1
 		#A影响B
-		effectNet(netB,clusterBs,clusterAs)
+		finalMaxClusterB= effectNet(netB,clusterBs,clusterAs)
 		#A影响C
-		effectNet(netC,clusterCs,clusterAs)
+		finalMaxClusterC= effectNet(netC,clusterCs,clusterAs)
 
 		#B&C 影响A
-		effectNetByTwoNet(netA,clusterAs,clusterBs,clusterCs)
+		finalMaxClusterA= effectNetByTwoNet(netA,clusterAs,clusterBs,clusterCs)
 	
 	# print "cluster A:",clusterAs
 	# print "cluster B:",clusterBs
@@ -255,13 +259,13 @@ def networkAction(prob,attckNum,effectNum):
 
 	# 如果cluster中不全是孤立节点，则结果为1；反之则为0
 	# index 0: neta; index1: netb; index2: netc
-	results =[0,0,0]
+	results =([0,finalMaxClusterA],[0,finalMaxClusterB],[0,finalMaxClusterC])
 	if len(netA) !=0:
-		results[0]=1
+		results[0][0]=1
 	if len(netB) !=0:
-		results[1]=1
+		results[1][0]=1
 	if len(netC) !=0:
-		results[2]=1
+		results[2][0]=1
 	return results
 #程序入口
 if __name__ == '__main__':
@@ -281,34 +285,36 @@ if __name__ == '__main__':
 		attckNum=i*100
 		#neta ,netb,netc
 		counter=[0,0,0]
+		cluster=[0,0,0]
 		#跑10次
 		for i in range(10):
 			print "---------------------------",attckNum,i,"--------------------"
-			for i,count in enumerate(networkAction(prob,attckNum,effectNum)):
-				counter[i]=counter[i]+count
+			for i,countAndCluster in enumerate(networkAction(prob,attckNum,effectNum)):
+				counter[i]=counter[i]+countAndCluster[0]
+				cluster[i]=cluster[i]+countAndCluster[1]
 		#除以跑的次数，这里
-		results.get("neta").append(counter[0]/10.0)
-		results.get("netb").append(counter[1]/10.0)
-		results.get("netc").append(counter[2]/10.0)
+		results.get("neta").append((counter[0]/10.0,cluster[0]/10.0))
+		results.get("netb").append((counter[1]/10.0,cluster[1]/10.0))
+		results.get("netc").append((counter[2]/10.0,cluster[2]/10.0))
 
 
 	print "neta results:"
 	dicfile=open('./netaResult.txt','w')
-	for  i,val in enumerate(results.get("neta")):
-		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
-		dicfile.write("%s %s %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
+	for  i,vals in enumerate(results.get("neta")):
+		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s  avgMaxCluster: %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
+		dicfile.write("%s %s %s %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 	dicfile.close()
 	print "netb results:"
 	dicfile=open('./netbResult.txt','w')
 	for  i,val in enumerate(results.get("netb")):
-		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
-		dicfile.write("%s %s %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
+		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s  avgMaxCluster: %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
+		dicfile.write("%s %s %s %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 	dicfile.close()
 	print "netc results:"
 	dicfile=open('./netcResult.txt','w')
 	for  i,val in enumerate(results.get("netc")):
-		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
-		dicfile.write("%s %s %s" % ((i+1)*100, val,prob*(netSize-(i+1)*100)*1.0/netSize))
+		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s  avgMaxCluster: %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
+		dicfile.write("%s %s %s %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 	dicfile.close()
 
 
