@@ -70,8 +70,9 @@ def remainGiantCluster(clusters,net):
 	#最大cluster标号及规模
 	cs={}
 	for c in clusters:
-		size=cs.get(c,0)
-		cs[c]=size+1
+		if c<>0:
+			size=cs.get(c,0)
+			cs[c]=size+1
 	maxc=0
 	maxs=0
 	for (c,size) in cs.items():
@@ -114,12 +115,10 @@ def effectNet(targetNet,targetCluster,effectCluster):
 		for r in removeLink:
 			targetNet.get(k).remove(r)
 
-	print "net pre num:",len(targetNet)
 	#去除网络中没有连边的点
 	for k in targetNet.keys():
 		if len(targetNet.get(k))==0:
 			targetNet.pop(k)
-	print "net aft num:",len(targetNet),"\n"
 
 	#更新cluster,TODO: 这是偷懒写法，是可优化点，将这个操作放在断边时做
 	initCluster(targetNet,targetCluster)
@@ -143,12 +142,10 @@ def effectNetByTwoNet(targetNet,targetCluster,effectCluster1,effectCluster2):
 		for r in removeLink:
 			targetNet.get(k).remove(r)
 
-	print "net pre num:",len(targetNet)
 	#去除网络中没有连边的点
 	for k in targetNet.keys():
 		if len(targetNet.get(k))==0:
 			targetNet.pop(k)
-	print "net aft num:",len(targetNet),"\n"
 
 	#更新cluster,TODO: 这是偷懒写法，是可优化点，将这个操作放在断边时做
 	initCluster(targetNet,targetCluster)
@@ -196,7 +193,7 @@ def networkAction(prob,attckNum,effectNum):
 		while(attckNode in attcked):	
 			attckNode = random.randint(0,netSize-1)
 		attcked.add(attckNode)
-		print "attck node:",attckNode
+		# print "attck node:",attckNode
 		#destroy netA node & link
 		attckNet(attckNode,netA)
 		#destroy netB node & link
@@ -306,13 +303,13 @@ if __name__ == '__main__':
 	dicfile.close()
 	print "netb results:"
 	dicfile=open('./netbResult.txt','w')
-	for  i,val in enumerate(results.get("netb")):
+	for  i,vals in enumerate(results.get("netb")):
 		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s  avgMaxCluster: %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 		dicfile.write("%s %s %s %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 	dicfile.close()
 	print "netc results:"
 	dicfile=open('./netcResult.txt','w')
-	for  i,val in enumerate(results.get("netc")):
+	for  i,vals in enumerate(results.get("netc")):
 		print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s  avgMaxCluster: %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 		dicfile.write("%s %s %s %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 	dicfile.close()
