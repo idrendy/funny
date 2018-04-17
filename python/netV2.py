@@ -1,0 +1,175 @@
+#networks.py
+# -*- coding: utf-8 -*- 
+import random
+import sys  
+from random import choice
+#增加递归深度,与netSize一致就可以
+sys.setrecursionlimit(50000)  
+
+#cluster accumulation
+global clusterAcc
+clusterAcc=0
+netSize=1000
+
+def initNet(net,prob):
+	#初始化dict
+	for i in range(netSize):
+		#print "init net node: ",i
+		for j in range(i+1,netSize):
+			#两点连接概率m% ==  1~netSize个数中随机抽取一个数小于 netSize * m%的概率
+			if random.randint(1,netSize) < prob:
+				#保存连接关系
+				va1=net.get(i,set([]))
+				va1.add(j)
+				net[i]=va1
+				va2=net.get(j,set([]))
+				va2.add(i)
+				net[j]=va2
+
+def initCluster(net,clusters):
+	global clusterAcc
+	clusterAcc=0
+	for i in range(netSize):
+		clusters[i]=0
+	for i in range(netSize):
+		repartitionCluster(i,net,clusters)
+
+
+def repartitionCluster(node,net,clusters):
+	global clusterAcc
+	if node in net:
+		#如果此节点未归过cluster,则说明此节点以及它的相邻节点都与之前的节点都无交集，新建cluster
+		if clusters[node]==0:
+			clusterAcc+=1
+			clusters[node]=clusterAcc
+			#相邻节点也是同样的cluster
+		for n in net.get(node,set([])):
+			if clusters[n]==0:
+				clusters[n]=clusterAcc
+				#深度遍历
+				repartitionCluster(n,net,clusters)
+
+def extractLinksByCluster(node,net,links):
+	for n in net.get(node,set([])):
+		#防止重复加边
+		if ((n,node) not in links) and ((node,n) not in links):
+			links.add((node,n))
+			extractLinksByCluster(n,net,links)
+
+def getClusterSize(ci,cluster):
+	length=0
+	for v in cluster:
+		if v==ci:
+			length+=1
+	return length
+
+def effectNet(targetNet,targetCluster,effectCluster):
+	if len(targetNet) == 0 :
+		print "net no cluster anymore"
+		return 0
+	# 随机从net从选取一个节点（网络中的节点都有cluster）
+	node = choice(targetNet.keys())
+	print ("select node: %s ; cluster: %s" % (node,targetCluster[node]))
+	links =set(())
+	extractLinksByCluster(node,targetNet,links)
+	for i,link in enumerate(links):
+		#连边在effectCluster中在同一个cluster则跳过，不在则断开
+		if effectCluster[link[0]]==0 or effectCluster[link[1]]==0 or effectCluster[link[0]]!=effectCluster[link[1]]:
+			print "link:",link
+			targetNet.get(link[0]).remove(link[1])
+			targetNet.get(link[1]).remove(link[0])
+
+	#去除网络中没有连边的点
+	for k in targetNet.keys():
+		if len(targetNet.get(k))==0:
+			targetNet.pop(k)
+
+	#更新cluster,TODO: 这是偷懒写法，是可优化点，将这个操作放在断边时做
+	initCluster(targetNet,targetCluster)
+
+	if node in targetNet:
+		ci=targetCluster[node]
+		return getClusterSize(ci,targetCluster)
+	else :
+		return 0
+
+def networkAction(prob,effectNum):
+	#定义网络AB
+	#array: index{node}=>value{cluster}; index begin with zero,0是网络中的一号节点
+	clusterAs =[]
+	clusterBs =[]
+	#dict: key{node}=>value{set(links)
+	netA ={}
+	netB ={}
+	"""
+	初始网络
+	"""
+	#初始化array;range begin with zero
+	for i in range(netSize):
+		clusterAs.append(clusterAcc)
+		clusterBs.append(clusterAcc)
+	#初始化dict
+	initNet(netA,prob)
+	initNet(netB,prob)
+
+	"""
+	遍历网络，统计各节点的cluster归属情况
+	最终生成cluster名不是顺序的，但不影响后续计算
+	"""
+	#A
+	initCluster(netA,clusterAs)
+	#B
+	initCluster(netB,clusterBs)
+
+	"""
+	A、B网络互相影响
+	loop{
+		netb effect neta
+		neta effect netb
+	}
+	"""
+	finalNumOfClusterA=0
+	finalNumOfClusterB=0
+	for i in range(effectNum):
+		print ">>>>effect count: ",i+1
+		#B影响A
+		finalNumOfClusterA= effectNet(netA,clusterAs,clusterBs)
+		#A影响B
+		finalNumOfClusterB= effectNet(netB,clusterBs,clusterAs)
+		print "length:",finalNumOfClusterA,finalNumOfClusterB
+	
+	return (finalNumOfClusterA,finalNumOfClusterB)
+
+#程序入口
+if __name__ == '__main__':
+	print "for 栋子小宝"
+	#link probability 0.4%：连接概率
+	prob= 4
+	#effect num:相互影响次数
+	effectNum=10
+
+	counterA=0
+	counterB=0
+
+	for i in range(1,10):
+		print "---------------------------",i,"--------------------"
+		ab=networkAction(prob,effectNum)
+		counterA+=ab[0]
+		counterB+=ab[1]
+
+	print counterA,counterB, counterA/10.0,counterB/10.0	
+
+	# print "neta results:"
+	# dicfile=open('./netaResult.txt','w')
+	# for  i,vals in enumerate(results.get("neta")):
+	# 	print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s  avgMaxCluster: %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
+	# 	dicfile.write("%s %s %s %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
+	# dicfile.close()
+
+
+
+
+
+
+
+
