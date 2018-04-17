@@ -138,7 +138,7 @@ def networkAction(prob,effectNum):
 		finalNumOfClusterB= effectNet(netB,clusterBs,clusterAs)
 		print "length:",finalNumOfClusterA,finalNumOfClusterB
 	
-	return (finalNumOfClusterA,finalNumOfClusterB)
+	return finalNumOfClusterA
 
 #程序入口
 if __name__ == '__main__':
@@ -148,16 +148,16 @@ if __name__ == '__main__':
 	#effect num:相互影响次数
 	effectNum=10
 
-	counterA=0
-	counterB=0
+	counterAs=[]
+	for p in range(1,10):
+		counterA=0
+		for i in range(1,10):
+			print "---------------------------",p,i,"--------------------"
+			counterA+=networkAction(p,effectNum)
+		counterAs.append(counterA/10.0)
 
-	for i in range(1,10):
-		print "---------------------------",i,"--------------------"
-		ab=networkAction(prob,effectNum)
-		counterA+=ab[0]
-		counterB+=ab[1]
-
-	print counterA,counterB, counterA/10.0,counterB/10.0	
+	for p in range(1,10):
+		print ("p: %s; counterA: %s;" % (p,counterAs[p-1]))
 
 	# print "neta results:"
 	# dicfile=open('./netaResult.txt','w')
@@ -165,11 +165,3 @@ if __name__ == '__main__':
 	# 	print("攻击次数：%s   结果1平均占比：%s  prob*(netSize-attcknum)/netSie: %s  avgMaxCluster: %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 	# 	dicfile.write("%s %s %s %s" % ((i+1)*100, vals[0],prob*(netSize-(i+1)*100)*1.0/netSize,vals[1]))
 	# dicfile.close()
-
-
-
-
-
-
-
-
