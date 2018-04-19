@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*- 
 import random
 import sys  
+import numpy
 from random import choice
 #增加递归深度,与netSize一致就可以
 sys.setrecursionlimit(50000)  
@@ -67,9 +68,15 @@ def effectNet(targetNet,targetCluster,effectCluster):
 	if len(targetNet) == 0 :
 		print "net no cluster anymore"
 		return 0
-	# 随机从net从选取一个节点（网络中的节点都有cluster）
-	node = choice(targetNet.keys())
+	# 方式一：随机从net从选取一个节点（网络中的节点都有cluster）
+	# node = choice(targetNet.keys())
+
+	# 方式二：随机从net从选取一个节点,此节点有可能是孤立节点
+	node =random.randint(0,netSize-1)
 	print ("select node: %s ; cluster: %s" % (node,targetCluster[node]))
+	if targetCluster[node]==0:
+		return 0
+
 	links =set(())
 	extractLinksByCluster(node,targetNet,links)
 	for i,link in enumerate(links):
@@ -144,20 +151,20 @@ def networkAction(prob,effectNum):
 if __name__ == '__main__':
 	print "for 栋子小宝"
 	#link probability 0.4%：连接概率
-	prob= 4
 	#effect num:相互影响次数
 	effectNum=10
+	step =0.5
 
 	counterAs=[]
-	for p in range(1,10):
+	for p in numpy.arange(0,6,step):
 		counterA=0
 		for i in range(1,10):
 			print "---------------------------",p,i,"--------------------"
 			counterA+=networkAction(p,effectNum)
 		counterAs.append(counterA/10.0)
 
-	for p in range(1,10):
-		print ("p: %s; counterA: %s;" % (p,counterAs[p-1]))
+	for i,v in enumerate(counterAs):
+		print ("p: %s; counterA: %s;" % (i*step,v))
 
 	# print "neta results:"
 	# dicfile=open('./netaResult.txt','w')
